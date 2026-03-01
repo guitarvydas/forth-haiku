@@ -1,0 +1,116 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                   FORTH HAIKU - GUARANTEED WORKING TEST                  ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+                           ┌─────────────────┐
+                           │  TERMINAL 1     │
+                           └─────────────────┘
+                                    │
+                                    ▼
+                          $ ./ws_server.js
+                                    │
+                                    ▼
+                    Server running on port 8080 ✓
+                                    │
+                                    │
+                           ┌────────┴────────┐
+                           │                 │
+                           ▼                 ▼
+                    ┌─────────────┐   ┌─────────────┐
+                    │  BROWSER    │   │ TERMINAL 2  │
+                    └─────────────┘   └─────────────┘
+                           │                 │
+                           ▼                 │
+      Open: http://localhost:8080/minimal   │
+                           │                 │
+                           ▼                 │
+      Page shows:                            │
+      - ✓ Connected!                         │
+      - Waiting for code...                  │
+      - Black canvas                         │
+                           │                 │
+                           │◄────────────────┤
+                           │   WebSocket     │
+                           │   connection    │
+                           │                 ▼
+                           │        Run this command:
+                           │        $ echo '["var go = function() { return [1, 0, 0, 1]; }; go"]' | ./ws_sender.js
+                           │                 │
+                           │                 ▼
+                           │        Terminal shows:
+                           │        - Connected ✓
+                           │        - Sent 48 bytes ✓
+                           │        - Waiting...
+                           │                 │
+                           │◄────────────────┤
+                           │  Send JavaScript│
+                           │                 │
+                           ▼                 │
+      Browser receives code                  │
+      - Evals JavaScript ✓                   │
+      - Renders to canvas ✓                  │
+      - Canvas shows RED SQUARE ✓            │
+                           │                 │
+                           ├────────────────►│
+                           │  Send response  │
+                           │                 ▼
+                           │        Terminal shows:
+                           │        ✓ SUCCESS! ✓
+
+
+WHAT YOU SHOULD SEE:
+═══════════════════
+
+Terminal 2:
+───────────
+Connected to ws://localhost:8080
+Sent 48 bytes of JavaScript
+Waiting for browser response...
+Response from browser: {
+  "status": "ok",
+  "message": "Code executed and rendered successfully",
+  "testResult": [ 1, 0, 0, 1 ]
+}
+✓ SUCCESS: Code executed and rendered
+
+
+Browser:
+────────
+Status: ✓ Code executed and rendered!
+Canvas: [SOLID RED SQUARE - 512x512 pixels]
+Event Log:
+  - ✓ WebSocket connected
+  - 📨 Received WebSocket message
+  - ✓ Eval successful, got: function
+  - ✓ Test call result: [1, 0, 0, 1]
+  - ✓ Rendered successfully!
+
+
+IF SOMETHING GOES WRONG:
+════════════════════════
+
+❌ Terminal says "Timeout: No response"
+   → Browser page is not open or wrong URL
+   → Open http://localhost:8080/minimal and try again
+
+❌ Terminal says "Connection failed"  
+   → Server is not running
+   → Check Terminal 1, restart ./ws_server.js
+
+❌ Browser shows nothing
+   → Press F12, check Console tab for errors
+   → Refresh page (F5) and try again
+
+❌ Canvas is black (not red)
+   → The code is wrong (but test should work)
+   → This shouldn't happen with the echo test
+
+
+NEXT STEPS:
+══════════
+
+Once the echo test works, try the full pipeline:
+
+  $ cat example_red.forth | ./forth_compiler.js | ./stack_optimizer.js | ./ws_sender.js
+
+This should also show a red square!

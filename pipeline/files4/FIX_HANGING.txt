@@ -1,0 +1,130 @@
+DIAGNOSIS: Your ws_sender.js is Hanging
+========================================
+
+Your command:
+  echo '["var go = function() { return [1, 0, 0, 1]; }; go"]' | ./ws_sender.js
+
+Shows:
+  Connected to ws://localhost:8080
+  Sent 48 bytes of JavaScript
+  [hangs here - no timeout, no response]
+
+This means: The browser is NOT responding to the WebSocket message.
+
+
+STEP-BY-STEP FIX
+================
+
+STEP 1: Kill the hanging ws_sender.js
+--------------------------------------
+Press Ctrl+C to stop the hanging process.
+
+
+STEP 2: Restart the WebSocket server with UPDATED version
+----------------------------------------------------------
+Terminal 1:
+  - If ws_server.js is running, press Ctrl+C to stop it
+  - Run: ./ws_server.js
+
+You should see:
+  ╔════════════════════════════════════════════════════════════════╗
+  ║  Forth Haiku WebSocket Server - Running on port 8080          ║
+  ╚════════════════════════════════════════════════════════════════╝
+
+  Available pages:
+    Main renderer:  http://localhost:8080/
+    Minimal test:   http://localhost:8080/minimal  ← START HERE
+    Debug test:     http://localhost:8080/test
+
+The updated server will now SHOW YOU when browsers connect!
+
+
+STEP 3: Open the browser page
+------------------------------
+In your browser, navigate to:
+  http://localhost:8080/minimal
+
+When you open this page, you should see IN THE SERVER TERMINAL:
+  [12:34:56] ✓ Browser connected
+
+If you DON'T see this message, the browser page failed to connect.
+
+
+STEP 4: Run the diagnostic
+---------------------------
+Terminal 2:
+  ./diagnostic_ws.js
+
+This will tell you EXACTLY what's wrong:
+  - If browser is not open
+  - If browser is not responding
+  - If everything works correctly
+
+
+EXPECTED OUTPUT FROM diagnostic_ws.js
+======================================
+
+If browser IS open at http://localhost:8080/minimal:
+
+  === WebSocket Diagnostic ===
+  
+  Connecting to ws://localhost:8080...
+  ✓ Connected
+  Sending test message...
+  ✓ Message sent
+  Waiting for response from browser...
+  ✓✓✓ Got response from browser! ✓✓✓
+  
+  Response: {"status":"ok",...}
+  Status: ok
+  Test result: [1,0,0,1]
+  
+  SUCCESS: WebSocket communication is working!
+
+
+If browser is NOT open:
+
+  === WebSocket Diagnostic ===
+  
+  Connecting to ws://localhost:8080...
+  ✓ Connected
+  Sending test message...
+  ✓ Message sent
+  Waiting for response from browser...
+  
+  --- After 3 seconds ---
+  Connected: true
+  Sent message: true
+  Received response: false
+  
+  DIAGNOSIS: Browser is NOT responding
+  
+  Possible causes:
+  1. Browser page is not open at http://localhost:8080/minimal
+  2. Browser page is open but has JavaScript errors
+  3. Browser page is open at wrong URL (should be /minimal)
+  
+  Action: Open http://localhost:8080/minimal in your browser NOW
+          Then run this diagnostic again
+
+
+WHAT YOU SHOULD SEE IN THE UPDATED SERVER
+==========================================
+
+When you run ./diagnostic_ws.js, you should see in Terminal 1 (server):
+
+  [12:34:56] ✓ Browser connected         <- when you open browser page
+  [12:34:57] ← Received from browser: ok  <- when browser responds to test
+
+
+TL;DR - DO THIS NOW
+===================
+
+1. Press Ctrl+C on the hanging ws_sender.js
+2. Restart ws_server.js (Ctrl+C, then ./ws_server.js)
+3. Open browser to http://localhost:8080/minimal
+4. Watch Terminal 1 - you should see "Browser connected"
+5. In Terminal 2, run: ./diagnostic_ws.js
+6. Look at the output - it will tell you what's wrong
+
+The updated server and diagnostic will show you EXACTLY what's happening!

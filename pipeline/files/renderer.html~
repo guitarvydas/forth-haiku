@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forth Haiku Renderer</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: monospace;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    #canvas {
+      border: 2px solid #00ff00;
+      display: block;
+      margin: 20px auto;
+      background: black;
+    }
+    #status {
+      text-align: center;
+      margin: 10px;
+      padding: 10px;
+      border: 1px solid #333;
+      background: #000;
+    }
+    .error {
+      color: #ff0000;
+    }
+    .success {
+      color: #00ff00;
+    }
+    .info {
+      color: #ffff00;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">Forth Haiku Renderer (Browser Slave)</h1>
+  <div id="status" class="info">Waiting for WebSocket connection...</div>
+  <canvas id="canvas" width="512" height="512"></canvas>
+
+  <script>
+    'use strict';
+
+    class HaikuRenderer {
+      constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.status = document.getElementById('status');
+        this.ws = null;
+        this.currentFunc = null;
+        this.memory = new Float32Array(16);
+        this.animationId = null;
+        this.time = 0;
+        this.lastTime = 0;
+        
+        this.setupMouseTracking();
+        this.connectWebSocket();
+      }
+
+      setupMouseTracking() {
+        this.mouseX = 0;
+        this.mouseY = 0;
+        
+        this.canvas.addEventListener('mousemove', (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          this.mouseX = (e.clientX - rect.left) / rect.width;
+          this.mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
+        });
+      }
+
+      connectWebSocket() {
+        const wsUrl = 'ws://localhost:8080';
+        this.updateStatus(`Connecting to ${wsUrl}...`, 'info');
+        
+        this.ws = new WebSocket(wsUrl);
+        
+        this.ws.onopen = () => {
+          this.updateStatus('Connected! Waiting for code...', 'success');
+        };
+        
+        this.ws.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+          this.handleMessage(msg);
+        };
+        
+        this.ws.onerror = (error) => {
+          this.updateStatus(`WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+        };
+        
+        this.ws.onclose = () => {
+          this.updateStatus('Connection closed. Refresh to reconnect.', 'info');
+        };
+      }
+
+      handleMessage(msg) {
+        console.log('Received message:', msg.type);
+        if (msg.type === 'code') {
+          this.executeCode(msg.javascript);
+        } else {
+          console.log('Unknown message type:', msg);
+        }
+      }
+
+      executeCode(jsString) {
+        try {
+          this.updateStatus('Compiling JavaScript...', 'info');
+          
+          console.log('JavaScript length:', jsString.length);
+          console.log('First 200 chars:', jsString.substring(0, 200));
+          
+          // Eval the JavaScript code to get the function
+          const func = eval(jsString);
+          
+          if (typeof func !== 'function') {
+            throw new Error('Code did not return a function');
+          }
+          
+          // Test the function with a sample call
+          const testResult = func(0, 0, 0.5, 0.5, 0, 0, 0, new Float32Array(16));
+          console.log('Test function call result:', testResult);
+          
+          this.currentFunc = func;
+          this.updateStatus('Code compiled successfully! Rendering...', 'success');
+          
+          // Render the image
+          this.render();
+          
+          // Send success response back
+          this.ws.send(JSON.stringify({
+            status: 'ok',
+            message: 'Code executed successfully'
+          }));
+          
+        } catch (e) {
+          this.updateStatus(`Error: ${e.message}`, 'error');
+          console.error('Execution error:', e);
+          console.error('Stack trace:', e.stack);
+          
+          // Send error response back
+          this.ws.send(JSON.stringify({
+            status: 'error',
+            message: e.toString()
+          }));
+        }
+      }
+
+      render() {
+        if (!this.currentFunc) return;
+
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const imageData = this.ctx.createImageData(width, height);
+        const data = imageData.data;
+
+        // Get current time
+        const now = performance.now() / 1000; // Convert to seconds
+        const dt = this.lastTime ? now - this.lastTime : 0.016;
+        this.lastTime = now;
+        this.time += dt;
+
+        // Render pixel by pixel
+        try {
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const xNorm = x / width;
+              const yNorm = 1.0 - (y / height); // Flip Y
+              
+              // Call the compiled function
+              const result = this.currentFunc(
+                this.time,           // time_val
+                dt,                  // time_delta_val
+                xNorm,               // xpos
+                yNorm,               // ypos
+                this.mouseX,         // mouse_x
+                this.mouseY,         // mouse_y
+                0,                   // button_val
+                this.memory          // memory
+              );
+              
+              // Extract RGBA (result should be array of 4 values)
+              const idx = (y * width + x) * 4;
+              data[idx]     = Math.floor(Math.min(Math.max(result[0], 0), 1) * 255); // R
+              data[idx + 1] = Math.floor(Math.min(Math.max(result[1], 0), 1) * 255); // G
+              data[idx + 2] = Math.floor(Math.min(Math.max(result[2], 0), 1) * 255); // B
+              data[idx + 3] = Math.floor(Math.min(Math.max(result[3], 0), 1) * 255); // A
+            }
+          }
+          
+          this.ctx.putImageData(imageData, 0, 0);
+          this.updateStatus('Rendered successfully!', 'success');
+          
+        } catch (e) {
+          this.updateStatus(`Render error: ${e.message}`, 'error');
+          console.error('Render error:', e);
+        }
+      }
+
+      updateStatus(message, type) {
+        this.status.textContent = message;
+        this.status.className = type;
+        console.log(`[${type.toUpperCase()}]`, message);
+      }
+    }
+
+    // Start the renderer when page loads
+    window.addEventListener('load', () => {
+      new HaikuRenderer();
+    });
+  </script>
+</body>
+</html>

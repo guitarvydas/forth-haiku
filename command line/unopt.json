@@ -1,0 +1,1 @@
+["dstack.push(xpos);","work1 = dstack.pop();","dstack.push(work1);","dstack.push(work1);","dstack.push(dstack.pop() * dstack.pop());","dstack.push(ypos);","work1 = dstack.pop();","dstack.push(work1);","dstack.push(work1);","dstack.push(dstack.pop() * dstack.pop());","dstack.push(dstack.pop() + dstack.pop());"]

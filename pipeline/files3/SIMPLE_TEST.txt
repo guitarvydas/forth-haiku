@@ -1,0 +1,77 @@
+SIMPLE TEST - Ensuring the Echo Command Works
+==============================================
+
+This is the SIMPLEST possible test. Follow these steps EXACTLY:
+
+STEP 1: Start the Server
+-------------------------
+Terminal 1:
+  ./ws_server.js
+
+You should see:
+  "Forth Haiku WebSocket Server - Running on port 8080"
+  "Minimal test: http://localhost:8080/minimal  ← START HERE"
+
+
+STEP 2: Open the Browser Page
+------------------------------
+Open your browser to:
+  http://localhost:8080/minimal
+
+You should see:
+  - A black page with green text
+  - "✓ Connected! Waiting for code..."
+  - A black canvas
+  - An event log showing "WebSocket connected"
+
+
+STEP 3: Run the Echo Test
+--------------------------
+Terminal 2:
+  echo '["var go = function() { return [1, 0, 0, 1]; }; go"]' | ./ws_sender.js
+
+You should see IN THE TERMINAL:
+  Connected to ws://localhost:8080
+  Sent 48 bytes of JavaScript
+  Waiting for browser response...
+  Response from browser: {
+    "status": "ok",
+    ...
+  }
+  ✓ SUCCESS: Code executed and rendered
+
+You should see IN THE BROWSER:
+  - Status changes to: "✓ Code executed and rendered!"
+  - Canvas shows: SOLID RED SQUARE
+  - Event log shows many green checkmarks
+
+
+TROUBLESHOOTING
+---------------
+
+Problem: "Timeout: No response from browser after 5 seconds"
+Solution: You don't have http://localhost:8080/minimal open in browser
+          Open it now and try again
+
+Problem: Terminal shows "Connected" but no response
+Solution: Refresh the browser page (F5) and try again
+
+Problem: Browser shows nothing
+Solution: Press F12, look at Console tab for errors
+
+Problem: "Connection failed"
+Solution: ws_server.js is not running. Start it in Terminal 1
+
+
+VERIFICATION
+------------
+If you see:
+  ✓ "SUCCESS" message in terminal
+  ✓ Red square in browser
+
+Then the test WORKS! The pipeline is functional.
+
+Next try:
+  cat example_red.forth | ./forth_compiler.js | ./stack_optimizer.js | ./ws_sender.js
+
+This should also show a red square.

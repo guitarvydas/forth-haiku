@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forth Haiku - Minimal Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+    }
+    #status {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #0f0;
+    }
+    #canvas {
+      border: 2px solid #0f0;
+      display: block;
+      margin: 20px 0;
+    }
+    .success { color: #0f0; }
+    .error { color: #f00; }
+    .info { color: #ff0; }
+  </style>
+</head>
+<body>
+  <h1>Forth Haiku - Minimal Test Page</h1>
+  <div id="status" class="info">Connecting to WebSocket...</div>
+  <canvas id="canvas" width="512" height="512"></canvas>
+  <div id="log" style="margin-top: 20px; border-top: 1px solid #333; padding-top: 10px;">
+    <h3>Event Log:</h3>
+    <div id="events"></div>
+  </div>
+
+  <script>
+    const status = document.getElementById('status');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const events = document.getElementById('events');
+    
+    function log(msg, color) {
+      const div = document.createElement('div');
+      div.style.color = color || '#0f0';
+      div.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
+      events.appendChild(div);
+      console.log(msg);
+    }
+    
+    log('Page loaded');
+    
+    const ws = new WebSocket('ws://localhost:8080');
+    
+    ws.onopen = () => {
+      status.textContent = '✓ Connected! Waiting for code...';
+      status.className = 'success';
+      log('✓ WebSocket connected', '#0f0');
+    };
+    
+    ws.onmessage = (event) => {
+      log('📨 Received WebSocket message', '#ff0');
+      
+      try {
+        const msg = JSON.parse(event.data);
+        log('Message type: ' + msg.type, '#0ff');
+        
+        if (msg.type === 'code') {
+          log('JavaScript length: ' + msg.javascript.length + ' bytes', '#0ff');
+          log('Evaluating JavaScript...', '#fff');
+          
+          // Eval the code
+          const func = eval(msg.javascript);
+          log('✓ Eval successful, got: ' + typeof func, '#0f0');
+          
+          if (typeof func !== 'function') {
+            throw new Error('Expected function, got ' + typeof func);
+          }
+          
+          // Test the function
+          const testResult = func(0, 0, 0.5, 0.5, 0, 0, 0, new Float32Array(16));
+          log('✓ Test call result: [' + testResult.join(', ') + ']', '#0f0');
+          
+          // Render to canvas
+          log('Rendering to canvas...', '#fff');
+          const w = canvas.width;
+          const h = canvas.height;
+          const imageData = ctx.createImageData(w, h);
+          const data = imageData.data;
+          
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const xNorm = x / w;
+              const yNorm = 1.0 - (y / h);
+              const result = func(0, 0, xNorm, yNorm, 0, 0, 0, new Float32Array(16));
+              
+              const idx = (y * w + x) * 4;
+              data[idx]     = Math.floor(Math.min(Math.max(result[0], 0), 1) * 255);
+              data[idx + 1] = Math.floor(Math.min(Math.max(result[1], 0), 1) * 255);
+              data[idx + 2] = Math.floor(Math.min(Math.max(result[2], 0), 1) * 255);
+              data[idx + 3] = Math.floor(Math.min(Math.max(result[3], 0), 1) * 255);
+            }
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+          log('✓ Rendered successfully!', '#0f0');
+          
+          status.textContent = '✓ Code executed and rendered!';
+          status.className = 'success';
+          
+          // Send success response
+          const response = {
+            status: 'ok',
+            message: 'Code executed and rendered successfully',
+            testResult: testResult
+          };
+          ws.send(JSON.stringify(response));
+          log('✓ Sent success response to server', '#0f0');
+        }
+        
+      } catch (e) {
+        log('✗ ERROR: ' + e.message, '#f00');
+        log('Stack: ' + e.stack, '#f00');
+        status.textContent = '✗ Error: ' + e.message;
+        status.className = 'error';
+        
+        // Send error response
+        ws.send(JSON.stringify({
+          status: 'error',
+          message: e.toString(),
+          stack: e.stack
+        }));
+      }
+    };
+    
+    ws.onerror = (err) => {
+      status.textContent = '✗ WebSocket error';
+      status.className = 'error';
+      log('✗ WebSocket error', '#f00');
+    };
+    
+    ws.onclose = () => {
+      log('Connection closed', '#ff0');
+    };
+  </script>
+</body>
+</html>

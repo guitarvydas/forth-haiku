@@ -1,0 +1,108 @@
+FORTH HAIKU ARTICLE SERIES - STRUCTURE
+=======================================
+
+A 6-part series exploring compiler design and software architecture
+through the lens of haiku.js
+
+OVERVIEW
+--------
+
+Part 1: Overview - Introduction to two-phase compilation
+Part 2: Examples - Concrete compilation walkthroughs  
+Part 3: Pipeline Architecture - Unix pipelines as system design
+Part 4: Optimizer - Deep dive into Phase 2 algorithms
+Part 5: Dictionary - Deep dive into Phase 1 code generation
+Part 6: Conclusion - Lessons and principles
+
+NARRATIVE ARC
+-------------
+
+Parts 1-2: WHAT (What the compiler does)
+  → Introduces the two-phase approach
+  → Shows concrete examples of transformation
+
+Part 3: WHERE (Where these principles apply)
+  → Extends to system architecture
+  → Demonstrates Unix pipeline philosophy
+
+Parts 4-5: HOW (How it works internally)
+  → Phase 2 optimizer algorithms
+  → Phase 1 dictionary generation
+
+Part 6: WHY (Why this matters)
+  → Broader lessons about software design
+  → Practical applications of principles
+
+KEY THEMES
+----------
+
+• Separation of Concerns - Each part does one thing
+• Composability - Simple pieces create complexity
+• Clear Interfaces - Well-defined boundaries
+• Simplicity - Achieved through composition
+• Practical Engineering - Working techniques, not theory
+
+SUGGESTED READING PATHS
+------------------------
+
+For Full Understanding:
+  Read sequentially: Parts 1 → 2 → 3 → 4 → 5 → 6
+
+For Compiler Design:
+  Parts 1, 2, 4, 5 (skip pipeline architecture)
+
+For System Architecture:
+  Parts 1, 3, 6 (focus on principles)
+
+For Quick Overview:
+  Parts 1 and 6 (intro + conclusion)
+
+For Specific Topics:
+  Optimization techniques → Part 4
+  Code generation → Part 5
+  Pipeline design → Part 3
+  Concrete examples → Part 2
+
+TARGET AUDIENCE
+---------------
+
+• Compiler enthusiasts
+• Software architects  
+• Forth programmers
+• Unix pipeline advocates
+• Anyone interested in simple, elegant software
+
+ARTICLE LENGTHS
+---------------
+
+Part 1: ~800 words (Overview)
+Part 2: ~1500 words (Examples with code)
+Part 3: ~1200 words (Architecture)
+Part 4: ~1600 words (Optimizer details)
+Part 5: ~1400 words (Dictionary details)
+Part 6: ~1300 words (Conclusion + index)
+
+Total: ~7800 words
+
+PUBLICATION SUGGESTIONS
+-----------------------
+
+Platform: Substack, Medium, personal blog
+Format: Markdown (ready to publish)
+Schedule: 
+  - All at once (as a series)
+  - One per week (6 weeks)
+  - One per day (6 days)
+
+Cross-references: Each article links to others in series
+Standalone: Each can be read independently
+Index: SERIES_INDEX.md provides navigation
+
+ORIGINAL SOURCE
+---------------
+
+All articles reference:
+https://forthsalon.appspot.com/static/haiku.js
+
+Encourages readers to examine the original code
+alongside the explanations.

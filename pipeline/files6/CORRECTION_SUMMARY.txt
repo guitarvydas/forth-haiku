@@ -1,0 +1,128 @@
+PIPELINE CORRECTION SUMMARY
+===========================
+
+YOU WERE RIGHT: ws_sender should just forward stdin to WebSocket!
+
+
+BEFORE (Incorrect):
+═══════════════════
+
+Pipeline had 4 parts + browser:
+
+  forth_compiler.js → JSON array
+  stack_optimizer.js → JSON array
+  ws_sender.js → PARSED JSON, JOINED, WRAPPED, sent to WebSocket
+  browser
+
+Problem: ws_sender was doing too much!
+  - Parsing JSON
+  - Joining array elements
+  - Wrapping in message format
+  - Sending via WebSocket
+
+This violated Unix philosophy: Do ONE thing.
+
+
+AFTER (Corrected):
+══════════════════
+
+Pipeline now has 5 parts + browser:
+
+  forth_compiler.js → JSON array
+  stack_optimizer.js → JSON array
+  prepare_message.js → JSON message {type: 'code', javascript: '...'}
+  ws_sender.js → forwards stdin to WebSocket (GENERIC!)
+  browser
+
+Each part does ONE thing:
+  ✓ forth_compiler: Compiles Forth to JS
+  ✓ stack_optimizer: Optimizes stack operations
+  ✓ prepare_message: Formats message for browser
+  ✓ ws_sender: Forwards stdin to WebSocket (doesn't care about content!)
+
+
+KEY INSIGHT:
+════════════
+
+ws_sender.js is now COMPLETELY GENERIC and REUSABLE!
+
+It doesn't know or care about:
+  - Forth
+  - JavaScript
+  - JSON
+  - Message formats
+  
+It just does: stdin → WebSocket
+
+This means you can use it for ANYTHING:
+
+  echo "Hello" | ./ws_sender.js
+  cat file.json | ./ws_sender.js
+  ./some_other_pipeline | ./ws_sender.js
+
+
+USAGE:
+══════
+
+Old way (embedded in ws_sender):
+  cat example.forth | ./forth_compiler.js | ./stack_optimizer.js | ./ws_sender.js
+                                                                    ↑
+                                                            Parsed JSON, joined,
+                                                            wrapped, sent
+
+New way (clean separation):
+  cat example.forth | ./forth_compiler.js | ./stack_optimizer.js | ./prepare_message.js | ./ws_sender.js
+                                                                    ↑                      ↑
+                                                            Wraps in format        Just forwards stdin
+
+
+BENEFITS:
+═════════
+
+1. REUSABILITY
+   ws_sender.js can be used for ANY WebSocket forwarding task
+
+2. TESTABILITY
+   Each part can be tested independently:
+     cat example.forth | ./forth_compiler.js
+     cat example.forth | ./forth_compiler.js | ./stack_optimizer.js
+     cat example.forth | ./forth_compiler.js | ./stack_optimizer.js | ./prepare_message.js
+
+3. FLEXIBILITY
+   Easy to insert new stages:
+     ... | ./minifier.js | ./prepare_message.js | ./ws_sender.js
+     ... | ./linter.js | ./prepare_message.js | ./ws_sender.js
+
+4. COMPOSABILITY
+   Can skip stages:
+     ... | ./forth_compiler.js | ./prepare_message.js | ./ws_sender.js
+     (skips optimizer)
+
+5. CLARITY
+   Each part's job is obvious from its name
+
+
+TESTING:
+════════
+
+Run: ./TEST_CORRECTED_PIPELINE.sh
+
+This shows:
+  - What each stage outputs
+  - How ws_sender is generic
+  - The full pipeline working
+
+
+YOUR INSIGHT WAS CORRECT!
+══════════════════════════
+
+The original design violated Unix philosophy by making ws_sender
+do multiple things. The corrected design follows the principle:
+
+  "Write programs that do one thing and do it well."
+  "Write programs to work together."
+
+ws_sender now does ONE thing: forward stdin to WebSocket.
+prepare_message does ONE thing: format messages for the browser.
+
+This is the RIGHT way to build a pipeline!

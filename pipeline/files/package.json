@@ -1,0 +1,25 @@
+{
+  "name": "forth-haiku-pipeline",
+  "version": "1.0.0",
+  "description": "Modular Unix-style pipeline for compiling and rendering Forth haiku visual programs",
+  "main": "ws_server.js",
+  "scripts": {
+    "start": "node ws_server.js",
+    "test": "echo 'x y +' | node forth_compiler.js | node stack_optimizer.js"
+  },
+  "keywords": [
+    "forth",
+    "haiku",
+    "pipeline",
+    "visual-programming",
+    "generative-art"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "bin": {
+    "forth-haiku-server": "./ws_server.js"
+  }
+}
