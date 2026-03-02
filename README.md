@@ -19,4 +19,4 @@ Most of the work is done on the command line, then shipped via websocket to a re
 
 
 # Complete Architecture Guide
-![COMPLETE_ARCHITECTURE_GUIDE](COMPLETE_ARCHITECTURE_GUIDE.md)
+![COMPLETE_ARCHITECTURE_GUIDE](./COMPLETE_ARCHITECTURE_GUIDE.md)
