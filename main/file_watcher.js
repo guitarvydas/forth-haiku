@@ -52,9 +52,6 @@ process.stdin.on('end', () => {
 	}
     }
 
-    // Send immediately
-    sendFileIfChanged();
-
     // Watch for changes
     fs.watch(filename, (eventType) => {
 	if (eventType === 'change') {
