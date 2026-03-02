@@ -141,16 +141,16 @@ function optimize(code, result_limit) {
   return code;
 }
 
-// Read from stdin - process on double newline separator
+// Read from stdin - process when we see EOF marker
 let buffer = '';
 
 process.stdin.on('data', chunk => {
   buffer += chunk.toString();
   
-  const idx = buffer.indexOf('\n\n');
-  if (idx >= 0) {
-    const input = buffer.substring(0, idx).trim();
-    buffer = buffer.substring(idx + 2);
+  const markerIdx = buffer.indexOf('// ---EOF---');
+  if (markerIdx >= 0) {
+    const input = buffer.substring(0, markerIdx).trim();
+    buffer = buffer.substring(markerIdx + 12); // Skip past marker
     
     if (input) {
       try {
@@ -163,7 +163,7 @@ process.stdin.on('data', chunk => {
         } else {
           console.log(JSON.stringify(optimized));
         }
-        console.log(''); // Blank line separator
+        console.log('// ---EOF---'); // Pass EOF marker to next stage
       } catch (e) {
         console.error('Optimization error:', e.message);
       }

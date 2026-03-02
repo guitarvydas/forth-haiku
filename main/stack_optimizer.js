@@ -141,22 +141,34 @@ function optimize(code, result_limit) {
   return code;
 }
 
-// Read from stdin
-let input = '';
-process.stdin.on('data', chunk => input += chunk.toString());
-process.stdin.on('end', () => {
-  try {
-    const code = JSON.parse(input);
-    const optimized = optimize(code, 4);
+
+
+// Read from stdin - process when we see EOF marker
+let buffer = '';
+
+process.stdin.on('data', chunk => {
+  buffer += chunk.toString();
+  
+  const markerIdx = buffer.indexOf('// ---EOF---');
+  if (markerIdx >= 0) {
+    const input = buffer.substring(0, markerIdx).trim();
+    buffer = buffer.substring(markerIdx + 12); // Skip past marker
     
-    if (optimized === BOGUS) {
-      console.error('Optimization failed - returning BOGUS code');
-      console.log(JSON.stringify(BOGUS));
-    } else {
-      console.log(JSON.stringify(optimized));
+    if (input) {
+      try {
+        const code = JSON.parse(input);
+        const optimized = optimize(code, 4);
+        
+        if (optimized === BOGUS) {
+          console.error('Optimization failed - returning BOGUS code');
+          console.log(JSON.stringify(BOGUS));
+        } else {
+          console.log(JSON.stringify(optimized));
+        }
+        console.log('// ---EOF---'); // Pass EOF marker to next stage
+      } catch (e) {
+        console.error('Optimization error:', e.message);
+      }
     }
-  } catch (e) {
-    console.error('Optimization error:', e.message);
-    process.exit(1);
   }
 });

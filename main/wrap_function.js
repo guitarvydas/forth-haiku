@@ -60,36 +60,40 @@ const FUNC_FOOTER = `
 };
 go`;
 
-// Read from stdin
-let input = '';
-process.stdin.on('data', chunk => input += chunk.toString());
-process.stdin.on('end', () => {
-  try {
-    // Parse the JSON array
-    const statements = JSON.parse(input);
+// Read from stdin - process when we see EOF marker
+let buffer = '';
+
+process.stdin.on('data', chunk => {
+  buffer += chunk.toString();
+  
+  const markerIdx = buffer.indexOf('// ---EOF---');
+  if (markerIdx >= 0) {
+    const input = buffer.substring(0, markerIdx).trim();
+    buffer = buffer.substring(markerIdx + 12); // Skip past marker
     
-    if (!Array.isArray(statements)) {
-      throw new Error('Input must be a JSON array');
+    if (input) {
+      try {
+        const statements = JSON.parse(input);
+        
+        if (!Array.isArray(statements)) {
+          throw new Error('Input must be a JSON array');
+        }
+        
+        let output = FUNC_HEADER;
+        output += '\n';
+        
+        for (const stmt of statements) {
+          output += '  ' + stmt + '\n';
+        }
+        
+        output += FUNC_FOOTER;
+        
+        console.log(output);
+        // Note: No EOF marker here - ws_sender.js looks for 'go' at end
+        
+      } catch (e) {
+        console.error('Error:', e.message);
+      }
     }
-    
-    // Build complete function:
-    // 1. Function header with declarations
-    let output = FUNC_HEADER;
-    output += '\n';
-    
-    // 2. Body statements (indented)
-    for (const stmt of statements) {
-      output += '  ' + stmt + '\n';
-    }
-    
-    // 3. Function footer with return
-    output += FUNC_FOOTER;
-    
-    // Output to stdout
-    console.log(output);
-    
-  } catch (e) {
-    console.error('Error:', e.message);
-    process.exit(1);
   }
 });
