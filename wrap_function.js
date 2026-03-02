@@ -89,7 +89,7 @@ process.stdin.on('data', chunk => {
         output += FUNC_FOOTER;
         
         console.log(output);
-        // Note: No EOF marker here - ws_sender.js looks for 'go' at end
+        console.log('// ---EOF---'); // Pass EOF marker to next stage
         
       } catch (e) {
         console.error('Error:', e.message);

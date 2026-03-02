@@ -31,9 +31,6 @@ process.stdin.on('end', () => {
         }
     } 
 
-    // Send immediately
-    sendFile();
-
     let lastMtime = null;
     let debounceTimer = null;
 
@@ -54,9 +51,6 @@ process.stdin.on('end', () => {
 	    console.error(`Error reading ${filename}:`, e.message);
 	}
     }
-
-    // Send immediately
-    sendFileIfChanged();
 
     // Watch for changes
     fs.watch(filename, (eventType) => {

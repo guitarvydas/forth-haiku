@@ -141,8 +141,6 @@ function optimize(code, result_limit) {
   return code;
 }
 
-
-
 // Read from stdin - process when we see EOF marker
 let buffer = '';
 

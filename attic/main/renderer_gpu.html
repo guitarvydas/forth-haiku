@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forth Haiku GPU Renderer</title>
+  <style>
+    body { margin: 0; padding: 20px; font-family: monospace; background: #222; color: #eee; }
+    canvas { border: 2px solid #666; background: black; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .connected { background: #0a4; }
+    .disconnected { background: #a40; }
+    .error { background: #a00; }
+  </style>
+</head>
+<body>
+  <h1>Forth Haiku GPU Renderer (WebGL)</h1>
+  <canvas id="canvas" width="512" height="512"></canvas>
+  <div id="status" class="status disconnected">Connecting...</div>
+  <div>FPS: <span id="fps">0</span> | Mode: <strong>GPU (WebGL)</strong></div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const statusEl = document.getElementById('status');
+    const fpsEl = document.getElementById('fps');
+    
+    let gl, program, startTime = Date.now(), frameCount = 0, lastFpsUpdate = Date.now();
+    let mouseX = 0, mouseY = 0, mouseButtons = 0;
+    const memory = new Float32Array(16);
+    
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = (e.clientX - rect.left) / rect.width;
+      mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
+    });
+    canvas.addEventListener('mousedown', () => { mouseButtons |= 1; });
+    canvas.addEventListener('mouseup', () => { mouseButtons &= ~1; });
+    
+    /////
+function makeFragmentShader(inputCode) {
+    const prefix = [
+	'precision highp float;',
+	'varying vec2 tpos;',
+	'uniform float time_val, time_delta_val, button_val, mouse_x, mouse_y;',
+	'uniform float memory_val[16];',
+	'float memory[16]; float audio_sample;'
+    ];
+    
+    const main = [
+	'void main(void) {',
+	'float work1, work2, work3, work4, seed;',
+	'for (int i = 0; i < 16; ++i) { memory[i] = memory_val[i]; }'
+    ];
+    
+    // Start with prefix + main + user code (NO helpers yet!)
+    let code = prefix.concat(main).concat(inputCode);
+    
+    // Do replacements on user code
+    for (let i = 0; i < code.length; i++) {
+	code[i] = code[i].replace(/var /g, 'float ');
+	code[i] = code[i].replace(/xpos/g, 'tpos.x');
+	code[i] = code[i].replace(/ypos/g, 'tpos.y');
+	code[i] = code[i].replace(/Math\./g, '');
+	code[i] = code[i].replace(/\bsin\(/g, 'gsin(');
+	code[i] = code[i].replace(/\bcos\(/g, 'gcos(');
+	code[i] = code[i].replace(/\btan\(/g, 'gtan(');
+	const pushMatch = code[i].match(/dstack\.push\((.*)\);/);
+	if (pushMatch) code[i] = '// PUSH: ' + pushMatch[1];
+    }
+    
+    // NOW add helper functions AFTER replacements (using original sin/cos/tan)
+    const helpers = [
+	'float gsin(float v) { return sin(mod(v, 6.283185307)); }',
+	'float gcos(float v) { return cos(mod(v, 6.283185307)); }',
+	'float gtan(float v) { return tan(mod(v, 6.283185307)); }',
+	'float hasbit(float v, float b) { b = floor(b); return mod(v, pow(2.0, b + 1.0)) >= pow(2.0, b) ? 1.0 : 0.0; }',
+	'float load(float a) { int ai = int(mod(floor(a), 16.0)); for (int i = 0; i < 16; ++i) { if (i == ai) return memory[i]; } return 0.0; }',
+	'void store(float v, float a) { int ai = int(mod(floor(a), 16.0)); for (int i = 0; i < 16; ++i) { if (i == ai) memory[i] = v; } }'
+    ];
+    
+    // Insert helpers after prefix, before main
+    code.splice(prefix.length, 0, ...helpers);
+    
+    // Rest of function unchanged...
+    const rgbaValues = [];
+    for (let i = code.length - 1; i >= 0 && rgbaValues.length < 4; i--) {
+	const match = code[i].match(/^\/\/ PUSH: (.+)$/);
+	if (match) { rgbaValues.unshift(match[1]); code.splice(i, 1); }
+    }
+    
+    if (rgbaValues.length === 4) code.push('  gl_FragColor = vec4(' + rgbaValues.join(', ') + ');');
+    else code.push('  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);');
+    code.push('  gl_FragColor = clamp(gl_FragColor, 0.0, 1.0);');
+    code.push('  gl_FragColor.rgb *= gl_FragColor.a;');
+    code.push('}');
+    
+    return code.join('\n');
+}
+    /////
+    
+    function setupWebGL(glslCode) {
+      gl = canvas.getContext('webgl');
+      if (!gl) throw new Error('WebGL not supported');
+      
+      const vshaderCode = 'attribute vec2 ppos; varying vec2 tpos; void main(void) { tpos.x = (ppos.x + 1.0) / 2.0; tpos.y = (ppos.y + 1.0) / 2.0; gl_Position = vec4(ppos.x, ppos.y, 0.0, 1.0); }';
+      const vshader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(vshader, vshaderCode);
+      gl.compileShader(vshader);
+      if (!gl.getShaderParameter(vshader, gl.COMPILE_STATUS)) throw new Error('Vertex: ' + gl.getShaderInfoLog(vshader));
+      
+      const fshader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(fshader, glslCode);
+      gl.compileShader(fshader);
+      if (!gl.getShaderParameter(fshader, gl.COMPILE_STATUS)) throw new Error('Fragment:\n' + gl.getShaderInfoLog(fshader));
+      
+      program = gl.createProgram();
+      gl.attachShader(program, vshader);
+      gl.attachShader(program, fshader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('Link: ' + gl.getProgramInfoLog(program));
+      gl.useProgram(program);
+      
+      const vertices = new Float32Array([-1,-1, 1,-1, 1,1, -1,-1, 1,1, -1,1]);
+      const vbuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+      const vattrib = gl.getAttribLocation(program, 'ppos');
+      gl.enableVertexAttribArray(vattrib);
+      gl.vertexAttribPointer(vattrib, 2, gl.FLOAT, false, 0, 0);
+    }
+    
+    function render() {
+      if (gl && program) {
+        const time = (Date.now() - startTime) / 1000.0;
+        gl.uniform1f(gl.getUniformLocation(program, 'time_val'), time);
+        gl.uniform1f(gl.getUniformLocation(program, 'time_delta_val'), 1/60);
+        gl.uniform1f(gl.getUniformLocation(program, 'mouse_x'), mouseX);
+        gl.uniform1f(gl.getUniformLocation(program, 'mouse_y'), mouseY);
+        gl.uniform1f(gl.getUniformLocation(program, 'button_val'), mouseButtons);
+        gl.uniform1fv(gl.getUniformLocation(program, 'memory_val'), memory);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        frameCount++;
+        if (Date.now() - lastFpsUpdate > 1000) { fpsEl.textContent = frameCount; frameCount = 0; lastFpsUpdate = Date.now(); }
+      }
+      requestAnimationFrame(render);
+    }
+    
+    const ws = new WebSocket('ws://localhost:8080');
+    ws.onopen = () => { statusEl.className = 'status connected'; statusEl.textContent = 'Connected'; };
+    ws.onclose = () => { statusEl.className = 'status disconnected'; statusEl.textContent = 'Disconnected'; };
+    ws.onerror = () => { statusEl.className = 'status error'; statusEl.textContent = 'Error'; };
+    ws.onmessage = (event) => {
+      try {
+        const jsonArray = JSON.parse(event.data);
+        const glslCode = makeFragmentShader(jsonArray);
+        setupWebGL(glslCode);
+        statusEl.textContent = 'Shader compiled!';
+        startTime = Date.now();
+      } catch (e) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Error: ' + e.message;
+        console.error(e);
+      }
+    };
+    
+    render();
+  </script>
+</body>
+</html>

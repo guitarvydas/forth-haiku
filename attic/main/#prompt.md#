@@ -1,0 +1,1 @@
+We should be able to cut makeFragmentShader out of renderer_gpu.html and paste it into a new component on the command line pipeline.
