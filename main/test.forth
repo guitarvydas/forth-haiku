@@ -1,0 +1,3 @@
+\ Primrose haiku
+: i 2dup z* log ;
+x .5 - y .5 - i i i  log over
