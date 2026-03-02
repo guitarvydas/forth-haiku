@@ -190,7 +190,7 @@ const FUNC_SIGNATURE =
     '  } ';
 
 function compile(src_code) {
-  const code = [FUNC_SIGNATURE + ' var dstack=[]; var rstack=[]; '];
+  const code = [];
   const dict = core_words();
   let pending_name = 'bogus';
   const code_stack = [];
@@ -252,8 +252,6 @@ function compile(src_code) {
     }
   }
   
-  code.push('return dstack; }; go');
-  
   if (code.length > 2000) {
     console.error('Error: Code too long (>2000 statements)');
     process.exit(1);
@@ -262,19 +260,26 @@ function compile(src_code) {
   return code;
 }
 
-// Read from stdin
-let input = '';
-process.stdin.on('data', chunk => input += chunk.toString());
-process.stdin.on('end', () => {
-  // Handle delimiter from file_watcher
-  input = input.replace(/\n---END---\n/g, '');
+// Read from stdin - process when we see EOF marker
+let buffer = '';
+
+process.stdin.on('data', chunk => {
+  buffer += chunk.toString();
   
-  try {
-    const compiled = compile(input);
-    // Output as JSON array to stdout
-    console.log(JSON.stringify(compiled));
-  } catch (e) {
-    console.error('Compilation error:', e.message);
-    process.exit(1);
+  // Look for EOF marker
+  const markerIdx = buffer.indexOf('\\ ---EOF---\n');
+  if (markerIdx >= 0) {
+    const input = buffer.substring(0, markerIdx).trim();
+    buffer = buffer.substring(markerIdx + 13); // Skip past marker
+    
+    if (input) {
+      try {
+        const compiled = compile(input);
+        console.log(JSON.stringify(compiled));
+        console.log('// ---EOF---'); // Pass EOF marker to next stage
+      } catch (e) {
+        console.error('Compilation error:', e.message);
+      }
+    }
   }
 });

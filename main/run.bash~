@@ -1,7 +1,0 @@
-#!/bin/bash
-cd main
-echo "open renderer.html"
-cat primrose.forth |\
-    forth_compiler.js |\
-    stack_optimizer.js |\
-    wrap_function.js

@@ -26,7 +26,7 @@ let buffer = '';
 
 process.stdin.on('data', chunk => {
   buffer += chunk.toString();
-  
+
   // Look for EOF marker
   const markerIdx = buffer.indexOf('// ---EOF---');
   if (markerIdx >= 0) {
