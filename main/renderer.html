@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forth Haiku Renderer</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: monospace;
+      background: #222;
+      color: #eee;
+    }
+    #container {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+    canvas {
+      border: 2px solid #666;
+      background: black;
+      image-rendering: pixelated;
+    }
+    #info {
+      font-size: 14px;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .connected { background: #0a4; }
+    .disconnected { background: #a40; }
+    .error { background: #a00; }
+    #code {
+      background: #333;
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <h1>Forth Haiku Live Renderer</h1>
+  
+  <div id="container">
+    <div>
+      <canvas id="canvas" width="512" height="512"></canvas>
+      <div style="margin-top: 10px;">
+        <label>
+          <input type="checkbox" id="animate" checked> Animate
+        </label>
+        <span style="margin-left: 20px;">FPS: <span id="fps">0</span></span>
+      </div>
+    </div>
+    
+    <div id="info">
+      <div id="status" class="status disconnected">Connecting to WebSocket...</div>
+      <div style="margin-top: 20px;">
+        <strong>Received Code:</strong>
+        <div id="code">No code yet...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const codeEl = document.getElementById('code');
+    const fpsEl = document.getElementById('fps');
+    const animateCheckbox = document.getElementById('animate');
+    
+    const w = canvas.width;
+    const h = canvas.height;
+    const imageData = ctx.createImageData(w, h);
+    const memory = new Float32Array(16);
+    
+    let currentFunc = null;
+    let startTime = Date.now();
+    let lastTime = 0;
+    let frameCount = 0;
+    let lastFpsUpdate = Date.now();
+    
+    // Mouse tracking
+    let mouseX = 0;
+    let mouseY = 0;
+    let mouseButtons = 0;
+    
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = (e.clientX - rect.left) / rect.width;
+      mouseY = (e.clientY - rect.top) / rect.height;
+    });
+    
+    canvas.addEventListener('mousedown', (e) => {
+      mouseButtons |= 1;
+    });
+    
+    canvas.addEventListener('mouseup', (e) => {
+      mouseButtons &= ~1;
+    });
+    
+    // Connect to WebSocket
+    const ws = new WebSocket('ws://localhost:8080');
+    
+    ws.onopen = () => {
+      console.log('Connected to WebSocket server');
+      statusEl.className = 'status connected';
+      statusEl.textContent = 'Connected to WebSocket server';
+    };
+    
+    ws.onclose = () => {
+      console.log('Disconnected from WebSocket server');
+      statusEl.className = 'status disconnected';
+      statusEl.textContent = 'Disconnected from WebSocket server';
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      statusEl.className = 'status error';
+      statusEl.textContent = 'WebSocket error - check console';
+    };
+    
+    ws.onmessage = (event) => {
+      const code = event.data;
+      console.log('Received code:', code.substring(0, 100) + '...');
+      
+      // Display code
+      codeEl.textContent = code;
+      
+      try {
+        // Eval the code to create the function
+        currentFunc = eval(code);
+        
+        statusEl.className = 'status connected';
+        statusEl.textContent = 'Code received and compiled successfully!';
+        
+        // Reset time
+        startTime = Date.now();
+        lastTime = 0;
+        
+        console.log('Function compiled successfully');
+      } catch (e) {
+        console.error('Error compiling code:', e);
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Compilation error: ' + e.message;
+      }
+    };
+    
+    function render() {
+      if (!currentFunc) {
+        requestAnimationFrame(render);
+        return;
+      }
+      
+      const now = Date.now();
+      const time = (now - startTime) / 1000.0;
+      const dt = time - lastTime;
+      lastTime = time;
+      
+      // Render each pixel
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          try {
+            const result = currentFunc(
+              time,           // time_val
+              dt,             // time_delta_val
+              x / w,          // xpos (0..1)
+              y / h,          // ypos (0..1)
+              mouseX,         // mouse_x
+              mouseY,         // mouse_y
+              mouseButtons,   // button_val
+              memory          // memory array
+            );
+            
+            const idx = (y * w + x) * 4;
+            imageData.data[idx + 0] = Math.floor(result[0] * 255);  // R
+            imageData.data[idx + 1] = Math.floor(result[1] * 255);  // G
+            imageData.data[idx + 2] = Math.floor(result[2] * 255);  // B
+            imageData.data[idx + 3] = Math.floor(result[3] * 255);  // A
+          } catch (e) {
+            // If function throws, use error color (red)
+            const idx = (y * w + x) * 4;
+            imageData.data[idx + 0] = 255;
+            imageData.data[idx + 1] = 0;
+            imageData.data[idx + 2] = 0;
+            imageData.data[idx + 3] = 255;
+          }
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      
+      // Update FPS
+      frameCount++;
+      if (now - lastFpsUpdate > 1000) {
+        fpsEl.textContent = frameCount.toFixed(1);
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+      
+      if (animateCheckbox.checked) {
+        requestAnimationFrame(render);
+      }
+    }
+    
+    // Start animation loop
+    render();
+    
+    // Re-render when animate checkbox changes
+    animateCheckbox.addEventListener('change', () => {
+      if (animateCheckbox.checked) {
+        render();
+      }
+    });
+  </script>
+</body>
+</html>

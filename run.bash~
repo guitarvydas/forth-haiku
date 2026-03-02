@@ -1,0 +1,4 @@
+#!/bin/bash
+cd main
+echo "open renderer.html"
+cat 20
