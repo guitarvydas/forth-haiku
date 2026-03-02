@@ -2,11 +2,8 @@
 'use strict';
 
 const WebSocket = require('ws');
-const readline = require('readline');
 
 const PORT = 8080;
-
-// Create WebSocket server
 const wss = new WebSocket.Server({ port: PORT });
 
 console.error(`WebSocket server listening on port ${PORT}`);
@@ -24,44 +21,32 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Read from stdin line by line and accumulate JavaScript code
-let codeBuffer = '';
-let inFunction = false;
+// Read from stdin and accumulate until EOF marker
+let buffer = '';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  terminal: false
-});
-
-rl.on('line', (line) => {
-  codeBuffer += line + '\n';
+process.stdin.on('data', chunk => {
+  buffer += chunk.toString();
   
-  // Detect start of function
-  if (line.includes('var go = function')) {
-    inFunction = true;
-  }
-  
-  // Detect end of function (the final 'go' by itself)
-  if (inFunction && line.trim() === 'go') {
-    // Complete function received, send to all clients
-    console.error(`Sending ${codeBuffer.length} bytes of code to ${clients.length} client(s)`);
+  // Look for EOF marker
+  const markerIdx = buffer.indexOf('// ---EOF---');
+  if (markerIdx >= 0) {
+    // Extract just the JSON (before the marker)
+    const jsonData = buffer.substring(0, markerIdx).trim();
+    buffer = buffer.substring(markerIdx + 12); // Skip past marker
     
-    clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(codeBuffer);
-      }
-    });
-    
-    // Reset for next update
-    codeBuffer = '';
-    inFunction = false;
+    if (jsonData && clients.length > 0) {
+      console.error(`Sending ${jsonData.length} bytes to ${clients.length} client(s)`);
+      console.error('First 100 chars:', jsonData.substring(0, 100));
+      
+      clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+	    console.log ('sending...');
+	    console.log (jsonData);
+            client.send(jsonData);  // Send WITHOUT the EOF marker!
+        }
+      });
+    }
   }
 });
 
-rl.on('close', () => {
-  console.error('Input stream closed');
-});
-
-// Keep process alive
 process.stdin.resume();
