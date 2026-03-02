@@ -1,7 +1,1 @@
-I'm using the modification time version. It prints the file once, then 
-```  
-File changed: primrose.forth
-  (file mtime unchanged, skipping)
-```
-
-I changed the EOF marker in the forth_compiler and stack_optimizer and wrap_function to be `//`
+I want to change the renderer (attached) to convert Javascript to GLSL and to try to render it as GLSL as in the attached `forth.haiku` code

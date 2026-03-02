@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forth Haiku GPU Renderer</title>
+  <style>
+    body { margin: 0; padding: 20px; font-family: monospace; background: #222; color: #eee; }
+    #container { display: flex; gap: 20px; align-items: flex-start; }
+    canvas { border: 2px solid #666; background: black; }
+    .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+    .connected { background: #0a4; }
+    .gpu { background: #04a; }
+    .error { background: #a00; }
+    #code, #glsl { background: #333; padding: 10px; max-height: 200px; overflow-y: auto; font-size: 11px; white-space: pre; }
+  </style>
+</head>
+<body>
+  <h1>Forth Haiku GPU Renderer</h1>
+  <div id="container">
+    <div>
+      <canvas id="canvas" width="512" height="512"></canvas>
+      <div style="margin-top: 10px;">
+        <label><input type="checkbox" id="animate" checked> Animate</label>
+        <span style="margin-left: 20px;">FPS: <span id="fps">0</span></span>
+        <span style="margin-left: 20px;">Mode: <span id="mode">-</span></span>
+      </div>
+    </div>
+    <div>
+      <div id="status" class="status">Connecting...</div>
+      <div style="margin-top: 20px;"><strong>GLSL Shader:</strong><div id="glsl">No shader yet...</div></div>
+    </div>
+  </div>
+  <script src="renderer_gpu.js"></script>
+</body>
+</html>
